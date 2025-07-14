@@ -32,6 +32,11 @@ app.get("/file/uploads/:path", (req, res) => {
     });
 });
 
+// api/hello.js
+module.exports = (req, res) => {
+  res.status(200).json({ message: "Hello from Vercel!" });
+};
+
 // Routes
 const adminRoute = require("./admin/index");
 const frontUserRoute = require("./frontUsers/index");
@@ -42,3 +47,8 @@ app.use("/front_user", frontUserRoute);
 // Export for Vercel
 module.exports = app;
 module.exports.handler = serverless(app);
+
+const serverless = require("serverless-http");
+module.exports = app;
+module.exports.handler = serverless(app);  // <- required for Vercel
+
