@@ -31,9 +31,17 @@ router.post("/deleteTopic", adminController.deleteTopic);
 //Sub Topic
 router.post("/addSubtopic", adminController.addSubtopic);
 router.post("/getSubtopicsByTopic", adminController.getSubtopicsByTopic);
+router.post("/getSubtopicsById", adminController.getSubtopicsById);
 router.post("/updateSubtopic", adminController.updateSubtopic);
-router.post("/updateSubtopic", adminController.updateSubtopic);
-router.post("/deledeleteSubtopicteTopic", adminController.deleteSubtopic);
+router.post("/deleteSubtopic", adminController.deleteSubtopic);
+
+//Details
+router.post("/addDetail", adminController.addDetail);
+router.post("/getAllDetails", adminController.getAllDetails);
+router.post("/getDetailsBySubTopic", adminController.getDetailsBySubTopic);
+router.post("/getDetailById", adminController.getDetailById);
+router.post("/updateDetail", adminController.updateDetail);
+router.post("/deleteDetail", adminController.deleteDetail);
 
 
 

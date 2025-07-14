@@ -43,6 +43,10 @@ const registrationSchema = new mongoose.Schema({
     user_role: String,
     category: String,
     admin_id: String,
+    latitude: String,
+    longitude: String,
+    device: String,
+    fcm_token: String,
     is_deleted: { type: Number, default: 0 },
     status: { type: Number, default: 1 }
 },
@@ -60,12 +64,14 @@ const LanguageSchema = new mongoose.Schema({
         unique: true, // Prevent duplicates
         trim: true
     },
+    order: { type: Number},
     is_deleted: { type: Number, default: 0 },
     status: { type: Number, default: 1 },
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    updatedAt: { type: Date, default: Date.now }
 });
 const Language = mongoose.model("languages", LanguageSchema);
 
@@ -84,12 +90,14 @@ const topicSchema = new mongoose.Schema({
         type: String,
         default: ""
     },
+    order: { type: Number},
     is_deleted: { type: Number, default: 0 },
     status: { type: Number, default: 1 },
     createdAt: {
         type: Date,
         default: Date.now
-    }
+    },
+    updatedAt: { type: Date, default: Date.now }
 });
 const Topic = mongoose.model("topics", topicSchema);
 
@@ -109,15 +117,30 @@ const subtopicSchema = new mongoose.Schema({
         type: String,
         default: "",
     },
+    order: { type: Number},
     is_deleted: { type: Number, default: 0 },
     status: { type: Number, default: 1 },
     createdAt: {
         type: Date,
         default: Date.now,
     },
+    updatedAt: { type: Date, default: Date.now }
+});
+const Subtopic = mongoose.model("subtopics", subtopicSchema);
+
+const detailSchema = new mongoose.Schema({
+    sub_topic_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Subtopic', required: true },
+    video_url: { type: String },
+    description: [{ type: String }],
+    example: [{ type: String }],
+    order: { type: Number},
+    is_deleted: { type: Number, default: 0 },
+    status: { type: Number, default: 1 },
+    createdAt: { type: Date, default: Date.now },
+    updatedAt: { type: Date, default: Date.now }
 });
 
-const Subtopic = mongoose.model("subtopics", subtopicSchema);
+const Detail = mongoose.model('details', detailSchema);
 
 
 
@@ -133,7 +156,8 @@ module.exports = {
     Registration,
     Language,
     Topic,
-    Subtopic
+    Subtopic,
+    Detail
 
 
 

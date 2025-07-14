@@ -8,7 +8,7 @@ const multer = require('multer');
 const secretKey = 'kms-ak-node';
 const handler = require('./admin.handler')
 
-const { Registration, Language, Topic, Subtopic } = require("../schema/schema")
+const { Registration, Language, Topic, Subtopic, Detail } = require("../schema/schema")
 
 
 
@@ -113,34 +113,63 @@ exports.updatePassword = async (req, res) => {
 /************************ Registration API for Users in KMS ************************ */
 
 exports.Registration = async (req, res) => {
-    try {
-        // let profile_image = req.files["profile_image"] ? req.files["profile_image"][0].filename : "";
-        let { name, mobile_number, email, password, user_role, admin_id, category } = req.body;
-        let bPassword = await handler.bcryptPassword(password);
+  try {
+    // let profile_image = req.files["profile_image"] ? req.files["profile_image"][0].filename : "";
 
+    let {
+      name,
+      mobile_number,
+      email,
+      password,
+      user_role,
+      admin_id,
+      category,
+      address,
+      latitude,
+      longitude,
+      device,
+      fcm_token
+    } = req.body;
 
-        let existingUser = await Registration.findOne({ mobile_number });
-        if (existingUser) {
-            return res.status(400).json({ error: true, message: "Mobile number already exists" });
-        }
-
-        let newUser = new Registration({
-            // profile_image,
-            name,
-            mobile_number,
-            email: email.toLowerCase().trim(),
-            password: bPassword,
-            user_role,
-            admin_id,
-            category,
-        });
-
-        let result = await newUser.save();
-        res.status(200).json({ error: false, message: "Registered Successfully", data: result });
-    } catch (error) {
-        res.status(500).json({ error: true, message: "Something went wrong", data: error.message });
+    // Validate required fields
+    if (!name || !mobile_number || !email || !password || !user_role) {
+      return res.status(400).json({ error: true, message: "Required fields are missing" });
     }
+
+    // Check if user already exists
+    let existingUser = await Registration.findOne({ mobile_number });
+    if (existingUser) {
+      return res.status(400).json({ error: true, message: "Mobile number already exists" });
+    }
+
+    // Hash the password
+    let bPassword = await handler.bcryptPassword(password);
+
+    // Create new user
+    let newUser = new Registration({
+      // profile_image,
+      name,
+      mobile_number,
+      email: email.toLowerCase().trim(),
+      password: bPassword,
+      user_role,
+      admin_id,
+      category,
+      address,
+      latitude,
+      longitude,
+      device,
+      fcm_token
+    });
+
+    let result = await newUser.save();
+    res.status(200).json({ error: false, message: "Registered Successfully", data: result });
+
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Something went wrong", data: error.message });
+  }
 };
+
 
 // Update User
 exports.UpdateUser = async (req, res) => {
@@ -229,7 +258,14 @@ exports.addLanguage = async (req, res) => {
       return res.status(400).json({ error: true, message: "Language already exists" });
     }
 
-    const newLanguage = new Language({ name: name.trim().toLowerCase() });
+    // Get the max order globally (not just per sub_topic_id)
+    const lastDetail = await Language.findOne().sort({ order: -1 });
+    const newOrder = lastDetail ? lastDetail.order + 1 : 1;
+
+    const newLanguage = new Language({ 
+        name: name.trim().toLowerCase() ,
+        order: newOrder
+    });
     const result = await newLanguage.save();
 
     return res.status(200).json({ error: false, message: "Language added successfully", data: result });
@@ -307,10 +343,15 @@ exports.addTopic = async (req, res) => {
       return res.status(400).json({ error: true, message: "Language ID and Topic name are required" });
     }
 
+    // Get the max order globally (not just per sub_topic_id)
+    const lastDetail = await Topic.findOne().sort({ order: -1 });
+    const newOrder = lastDetail ? lastDetail.order + 1 : 1;
+
     const topic = new Topic({
       languageId,
       name: name.trim(),
-      description
+      description,
+      order: newOrder
     });
 
     const result = await topic.save();
@@ -324,6 +365,11 @@ exports.addTopic = async (req, res) => {
 exports.getTopicsByLanguage = async (req, res) => {
   try {
     const { languageId } = req.body;
+
+    if (!languageId || languageId === "") {
+      return res.status(400).json({ error: true, message: "Invalid languageId", data: null });
+    }
+
     const topics = await Topic.find({ languageId }).sort({ name: 1 });
 
     res.status(200).json({ error: false, data: topics });
@@ -331,6 +377,7 @@ exports.getTopicsByLanguage = async (req, res) => {
     res.status(500).json({ error: true, message: "Error fetching topics", data: error.message });
   }
 };
+
 
 // Get Topics by Language
 exports.getTopicsById = async (req, res) => {
@@ -391,10 +438,16 @@ exports.addSubtopic = async (req, res) => {
       return res.status(400).json({ error: true, message: "Topic ID and Subtopic name are required" });
     }
 
+    
+    // Get the max order globally (not just per sub_topic_id)
+    const lastDetail = await Subtopic.findOne().sort({ order: -1 });
+    const newOrder = lastDetail ? lastDetail.order + 1 : 1;
+
     const subtopic = new Subtopic({
       topicId,
       name: name.trim(),
       description,
+      order: newOrder
     });
 
     const result = await subtopic.save();
@@ -408,7 +461,7 @@ exports.addSubtopic = async (req, res) => {
 exports.getSubtopicsByTopic = async (req, res) => {
   try {
     const { topicId } = req.body;
-    const subtopics = await Subtopic.find({ topicId }).sort({ name: 1 });
+    const subtopics = await Subtopic.find({ topicId }).sort({ order: 1 });
 
     res.status(200).json({ error: false, data: subtopics });
   } catch (error) {
@@ -417,7 +470,7 @@ exports.getSubtopicsByTopic = async (req, res) => {
 };
 
 // Get Subtopics by id
-exports.getSubtopicsByTopic = async (req, res) => {
+exports.getSubtopicsById = async (req, res) => {
   try {
     const { sub_topic_id } = req.body;
     const subtopics = await Subtopic.find({ _id: ObjectId(sub_topic_id) })
@@ -467,9 +520,115 @@ exports.deleteSubtopic = async (req, res) => {
 };
 
 
+// Add Detail
+exports.addDetail = async (req, res) => {
+  try {
+    const { sub_topic_id, video_url, description, example } = req.body;
+
+    if (!sub_topic_id) {
+      return res.status(400).json({ error: true, message: "sub_topic_id is required" });
+    }
+
+    // Get the max order globally (not just per sub_topic_id)
+    const lastDetail = await Detail.findOne().sort({ order: -1 });
+    const newOrder = lastDetail ? lastDetail.order + 1 : 1;
 
 
+    const detail = new Detail({
+      sub_topic_id,
+      video_url,
+      description,
+      example,
+      order: newOrder
+    });
 
+    const result = await detail.save();
+    res.status(200).json({ error: false, message: "Detail added successfully", data: result });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error adding detail", data: error.message });
+  }
+};
+
+// Get Details by Sub Topic ID
+exports.getAllDetails = async (req, res) => {
+  try {
+
+    const details = await Detail.find({ }).sort({ order: 1 });
+    res.status(200).json({ error: false, data: details });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error fetching details", data: error.message });
+  }
+};
+
+// Get Details by Sub Topic ID
+exports.getDetailsBySubTopic = async (req, res) => {
+  try {
+    const { sub_topic_id } = req.body;
+
+    const details = await Detail.find({ sub_topic_id }).sort({ createdAt: -1 });
+    res.status(200).json({ error: false, data: details });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error fetching details", data: error.message });
+  }
+};
+
+// Get Detail by ID
+exports.getDetailById = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const detail = await Detail.findById(id);
+    if (!detail) {
+      return res.status(404).json({ error: true, message: "Detail not found" });
+    }
+
+    res.status(200).json({ error: false, data: detail });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error fetching detail", data: error.message });
+  }
+};
+
+// Update Detail
+exports.updateDetail = async (req, res) => {
+  try {
+    const { id, video_url, description, example } = req.body;
+
+    const updated = await Detail.findByIdAndUpdate(
+      id,
+      {
+        video_url,
+        description,
+        example,
+        updatedAt: new Date()
+      },
+      { new: true }
+    );
+
+    if (!updated) {
+      return res.status(404).json({ error: true, message: "Detail not found" });
+    }
+
+    res.status(200).json({ error: false, message: "Detail updated", data: updated });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error updating detail", data: error.message });
+  }
+};
+
+// Delete Detail
+exports.deleteDetail = async (req, res) => {
+  try {
+    const { id } = req.body;
+
+    const deleted = await Detail.findByIdAndDelete(id);
+    if (!deleted) {
+      return res.status(404).json({ error: true, message: "Detail not found" });
+    }
+
+    res.status(200).json({ error: false, message: "Detail deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ error: true, message: "Error deleting detail", data: error.message });
+  }
+};
 
 
 
